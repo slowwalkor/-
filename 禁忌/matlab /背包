@@ -1,0 +1,128 @@
+%禁忌搜索算法解决背包问题
+%初始化参数
+clear all;%清除所有变量
+close all;%清图
+clc;%清屏
+N=50;%50件物品
+c=[5 4 7 2 6 3 8 5 8 4  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ];%初始化物品质量
+value=[12 3 10 3 6 7 9 6 12 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0];%初始化物品价值
+g=value./c;%价值密度（价值/重量),贪婪算法
+m1=40;%总重量约束值
+Tabu=zeros(N);%禁忌表50x50
+TabuL=round((N*(N-1)/2)^0.5);%禁忌长度35
+Ca=200;%候选集的个数(全部邻域解个数)
+CaNum=zeros(Ca,N);%候选解集合200x50
+v=randi([0,1],Ca,N);%随机生成200组初始解200x50
+v=greedy(v,c,g,m1);%贪婪算法修复解
+fit=v*value';%当前200组解计算的总价值200x1
+maxfit=max(fit);%最大适应度值
+rr=find(fit==maxfit);%返回最大适应度值下标
+S0=v(rr(1,1),:);%200组解中最好解作为初始解
+bestsofar=S0;%当前最佳解
+BestL=0;%当前最佳解价值
+G=500;%最大遗传代数
+p=1;
+
+%禁忌搜索循环
+while p<G
+    ALong(p)=S0*value';%当前装入背包各物品的总价值
+    i=1;
+    A=zeros(Ca,2);%2-opt邻域法200x2
+    while i<=Ca
+        M=N*rand(1,2);%随机生成1~50个物品
+        M=ceil(M);%对M向上取整,随机选取2个物品
+        if M(1)~=M(2)%不是同一物品
+            A(i,1)=max(M(1),M(2));
+            A(i,2)=min(M(1),M(2));
+            if i==1
+                isa=0;
+            else
+                for j=1:i-1%所选物品与之前不同，即每次改变的物品不重复
+                    if A(i,1)==A(j,1) && A(i,2)==A(j,2)
+                        isa=1;
+                        break;
+                    else
+                        isa=0;
+                    end
+                end
+            end
+            if ~isa
+                i=i+1;
+            else
+            end
+        else
+        end
+    end
+    
+    %产生邻域解
+    BestCaNum=Ca/2;%100个最好候选解
+    BestCa=Inf*ones(BestCaNum,4);%最好100个候选解集(100x4)
+    F=zeros(1,Ca);%候选集的总价值1x200
+    for i=1:Ca
+        CaNum(i,:)=S0;
+        CaNum(i,[A(i,1),A(i,2)])=~S0([A(i,1),A(i,2)]);%随机选择两位取反,产生候选解
+        CaNum(i,:)=greedy(CaNum(i,:),c,g,m1);%贪婪算法修复解
+        F(i)=CaNum(i,:)*value';%计算候选解总价值
+        if i<=BestCaNum%后100个候选解逐一与前100个候选解比较，找出100个最好候选解
+            BestCa(i,2)=F(i);
+            BestCa(i,1)=i;
+            BestCa(i,3)=A(i,1);
+            BestCa(i,4)=A(i,2);
+        else
+            for j=1:BestCaNum
+                if F(i)>BestCa(j,2)
+                      BestCa(j,2)=F(i);
+                      BestCa(j,1)=i;
+                      BestCa(j,3)=A(i,1);
+                      BestCa(j,4)=A(i,2);
+                      break;
+                end
+            end
+        end
+    end
+    [JL,Index]=sort(BestCa(:,2),'descend');%对100个最好候选解排序（降序排列）
+    SBest=BestCa(Index,:);%将排序后候选解集赋给SBest
+    BestCa=SBest;%更新候选解集    
+    %藐视准则
+    if BestCa(1,2)>BestL%候选解集中最优解是否比初始解好
+        BestL=BestCa(1,2);%满足的话，替代初始解成为当前最佳解总价值
+        S0=CaNum(BestCa(1,1),:);%更新当前最佳解
+        bestsofar=S0;
+        for m=1:N
+            for n=1:N
+                if Tabu(m,n)~=0
+                    Tabu(m,n)=Tabu(m,n)-1;
+                    %更新禁忌表
+                end
+            end
+        end
+        Tabu(BestCa(1,3),BestCa(1,4))=TabuL;%当前最佳解的2个物品禁忌
+        %更新禁忌表
+     else
+        for i=1:BestCaNum
+            if Tabu(BestCa(i,3),BestCa(i,4))==0%候选解集中不在禁忌表的最佳状态为新的当前解
+                S0=CaNum(BestCa(i,1),:);
+                for m=1:N
+                    for n=1:N
+                        if Tabu(m,n)~=0
+                            Tabu(m,n)=Tabu(m,n)-1;
+                            %更新禁忌表
+                        end
+                    end
+                end
+                Tabu(BestCa(i,3),BestCa(i,4))=TabuL;%当前最佳解的2个物品禁忌
+                %更新禁忌表
+                break;
+            end
+        end
+    end
+    ArrBestL(p)=BestL;%保存历史最佳解，最大总价值
+    p=p+1;
+end
+BestMaxcut=bestsofar;%最佳解         
+theMaxValue=BestL;%最大总价值
+figure(1);
+plot(ArrBestL);  
+xlabel('迭代次数')
+ylabel('目标函数值')
+title('适应度函数进化曲线')
