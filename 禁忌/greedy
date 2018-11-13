@@ -1,0 +1,19 @@
+%修正函数滤掉无效解(解码法)
+function vf=greedy(v,c,g,m1)%返回50组有效解
+[m,n]=size(v);
+for i=1:m
+    label=g;
+    label=label.*v(i,:);%装入背包各物品的价值密度(.*对应元素相乘)
+    if sum(v(i,:).*c)>m1%如果背包总重量大于阈值,则修复无效解
+        %修复解
+        while sum(v(i,:).*c)>m1%取出背包中价值密度小的物品，直到满足背包容量的约束为止
+			newlabel=label;
+			newlabel(0==newlabel)=inf;
+            [nlabel,index]=sort(newlabel);
+			v(i,index(1))=0;%将价值密度最小的物品取出
+			label(index(1))=0;
+        end
+    end
+end
+vf=v;
+end
